@@ -22,6 +22,7 @@ function generateAccessToken(user) {
   );
 }
 
+
 /**
  * Generates a cryptographically strong refresh token string
  */
@@ -47,31 +48,35 @@ function verifyAccessToken(token) {
   }
 }
 
+
 /**
  * Cookie options for Access Token
  */
 function getAccessTokenCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
+
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/',
-    maxAge: 15 * 60 * 1000 // 15 minutes
+    maxAge: 15 * 60 * 1000
   };
 }
 
 /**
  * Cookie options for Refresh Token
  */
+
 function getRefreshTokenCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
+
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/',
-    maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000 // 30 days
+    maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
   };
 }
 
