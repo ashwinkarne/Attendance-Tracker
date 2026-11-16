@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://attendance-tracker-uhvy.onrender.com/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -52,7 +52,7 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      await axios.post('/api/auth/refresh', {}, {
+      await axios.post('https://attendance-tracker-uhvy.onrender.com/api/auth/refresh', {}, {
         withCredentials: true,
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
       });
