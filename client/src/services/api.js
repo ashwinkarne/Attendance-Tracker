@@ -1,8 +1,13 @@
 import axios from 'axios';
 
-// Default to relative '/api' so Vercel proxies requests (first-party cookies!),
-// or allow overriding via VITE_API_BASE_URL if explicitly set.
-const apiBaseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+// When running in the browser on Vercel or any non-localhost host,
+// ALWAYS use relative '/api' so requests go through the same-origin Vercel proxy.
+// This guarantees cookies are first-party and immune to browser third-party cookie blocking.
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const apiBaseURL = isLocalhost ? (import.meta.env.VITE_API_BASE_URL || '/api') : '/api';
 
 const api = axios.create({
   baseURL: apiBaseURL,
@@ -13,15 +18,42 @@ const api = axios.create({
   }
 });
 
+// In-memory access token cache for active session resilience
+// (Never stored in localStorage or sessionStorage, completely secure)
+let memoryToken = null;
+
+export function setMemoryToken(token) {
+  memoryToken = token;
+}
+
+export function getMemoryToken() {
+  return memoryToken;
+}
+
+// Request Interceptor: Attach Authorization Bearer token from memory if present
+api.interceptors.request.use((config) => {
+  if (memoryToken && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${memoryToken}`;
+  }
+  return config;
+});
+
 let refreshPromise = null;
 
+// Response Interceptor: Automatically refresh on 401 and capture new access token
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Capture new access token in memory if provided in response body
+    if (response.data && response.data.accessToken) {
+      setMemoryToken(response.data.accessToken);
+    }
+    return response;
+  },
 
   async (error) => {
     const originalRequest = error.config;
 
-    // Ignore requests that have no response or are not 401
+    // Ignore requests without response or non-401 errors
     if (!error.response || error.response.status !== 401 || !originalRequest) {
       return Promise.reject(error);
     }
@@ -39,17 +71,21 @@ api.interceptors.response.use(
 
     originalRequest._retry = true;
 
-    // If no refresh is currently pending, start one
+    // Singleton refresh: exactly one refresh call executes at any given time
     if (!refreshPromise) {
       refreshPromise = api
         .post('/auth/refresh', {})
         .then((res) => {
           refreshPromise = null;
+          if (res.data && res.data.accessToken) {
+            setMemoryToken(res.data.accessToken);
+          }
           return res;
         })
         .catch((refreshError) => {
           refreshPromise = null;
-          // Notify app that authentication has expired
+          setMemoryToken(null);
+          // Notify the application that the session is expired
           window.dispatchEvent(new CustomEvent('auth:expired'));
           return Promise.reject(refreshError);
         });
@@ -57,7 +93,14 @@ api.interceptors.response.use(
 
     // Wait for the shared refresh to complete, then retry this original request
     return refreshPromise
-      .then(() => api(originalRequest))
+      .then(() => {
+        // Update header with fresh memory token if available
+        if (memoryToken) {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${memoryToken}`;
+        }
+        return api(originalRequest);
+      })
       .catch((err) => Promise.reject(err));
   }
 );

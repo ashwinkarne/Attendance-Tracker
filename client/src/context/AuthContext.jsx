@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
+import { setMemoryToken } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -25,6 +26,7 @@ export function AuthProvider({ children }) {
         // If getMe failed even after the interceptor attempted refresh,
         // the session is truly invalid or expired.
         if (isMounted) {
+          setMemoryToken(null);
           setUser(null);
         }
       } finally {
@@ -38,6 +40,7 @@ export function AuthProvider({ children }) {
 
     // Listen for global auth expiration events from axios interceptor
     const handleAuthExpired = () => {
+      setMemoryToken(null);
       setUser(null);
     };
 
@@ -52,6 +55,9 @@ export function AuthProvider({ children }) {
     setAuthError(null);
     try {
       const data = await authService.login({ rollNumber, password });
+      if (data.accessToken) {
+        setMemoryToken(data.accessToken);
+      }
       setUser(data.user);
       return data.user;
     } catch (err) {
@@ -79,6 +85,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.warn('Logout API warning:', err);
     } finally {
+      setMemoryToken(null);
       setUser(null);
     }
   };

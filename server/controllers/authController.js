@@ -50,7 +50,8 @@ async function login(req, res) {
     return res.status(200).json({
       success: true,
       message: 'Login successful.',
-      user
+      user,
+      accessToken
     });
   } catch (err) {
     const status = err.status || 500;
@@ -78,7 +79,8 @@ async function refresh(req, res) {
     return res.status(200).json({
       success: true,
       message: 'Session refreshed successfully.',
-      user
+      user,
+      accessToken
     });
   } catch (err) {
     // Clear cookies with matching secure and sameSite flags if refresh genuinely fails

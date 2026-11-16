@@ -1,4 +1,4 @@
-const CACHE_NAME = 'attendance-tracker-static-v1';
+const CACHE_NAME = 'attendance-tracker-static-v2';
 
 // Static assets to precache
 const PRECACHE_URLS = [
@@ -26,6 +26,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((name) => {
           if (name !== CACHE_NAME) {
+            console.log('Purging stale cache:', name);
             return caches.delete(name);
           }
         })
@@ -42,7 +43,30 @@ self.addEventListener('fetch', (event) => {
     return; // Pass through directly to network
   }
 
-  // Stale-While-Revalidate for static assets
+  // Network-First for HTML navigation requests
+  // Ensures new JS/CSS build bundles are always loaded when online,
+  // while still offering offline fallback from cache.
+  if (
+    event.request.mode === 'navigate' ||
+    event.request.headers.get('accept')?.includes('text/html')
+  ) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Stale-While-Revalidate for other static assets (icons, manifest)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
@@ -59,13 +83,7 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => {
-          // If offline and request is for an HTML page, serve cached index.html
-          if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/index.html');
-          }
-          return cachedResponse;
-        });
+        .catch(() => cachedResponse);
 
       return cachedResponse || fetchPromise;
     })
