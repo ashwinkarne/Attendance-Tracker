@@ -1,0 +1,24 @@
+{
+  "name": "semester-attendance-tracker",
+  "version": "1.0.0",
+  "description": "Production-quality semester attendance tracking Progressive Web App (PWA) with Node.js, Express, React, and MongoDB Atlas.",
+  "scripts": {
+    "start": "npm --prefix server start",
+    "server": "npm --prefix server start",
+    "server:dev": "npm --prefix server run dev",
+    "client": "npm --prefix client run dev",
+    "client:build": "npm --prefix client run build",
+    "test": "npm --prefix server test",
+    "build": "npm --prefix client run build"
+  },
+  "keywords": [
+    "attendance",
+    "semester",
+    "pwa",
+    "react",
+    "express",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "ISC"
+}
