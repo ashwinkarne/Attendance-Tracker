@@ -2,7 +2,8 @@ const authService = require('../services/authService');
 const User = require('../models/User');
 const {
   getAccessTokenCookieOptions,
-  getRefreshTokenCookieOptions
+  getRefreshTokenCookieOptions,
+  getClearCookieOptions
 } = require('../utils/jwtUtils');
 
 async function signup(req, res) {
@@ -80,9 +81,9 @@ async function refresh(req, res) {
       user
     });
   } catch (err) {
-    // Clear cookies if refresh fails
-    res.clearCookie('accessToken', { path: '/' });
-    res.clearCookie('refreshToken', { path: '/' });
+    // Clear cookies with matching secure and sameSite flags if refresh genuinely fails
+    res.clearCookie('accessToken', getClearCookieOptions());
+    res.clearCookie('refreshToken', getClearCookieOptions());
 
     const status = err.status || 401;
     return res.status(status).json({
@@ -97,16 +98,16 @@ async function logout(req, res) {
     const rawRefreshToken = req.cookies?.refreshToken;
     await authService.revokeSession(rawRefreshToken);
 
-    res.clearCookie('accessToken', { path: '/' });
-    res.clearCookie('refreshToken', { path: '/' });
+    res.clearCookie('accessToken', getClearCookieOptions());
+    res.clearCookie('refreshToken', getClearCookieOptions());
 
     return res.status(200).json({
       success: true,
       message: 'Logged out successfully.'
     });
   } catch (err) {
-    res.clearCookie('accessToken', { path: '/' });
-    res.clearCookie('refreshToken', { path: '/' });
+    res.clearCookie('accessToken', getClearCookieOptions());
+    res.clearCookie('refreshToken', getClearCookieOptions());
 
     return res.status(200).json({
       success: true,

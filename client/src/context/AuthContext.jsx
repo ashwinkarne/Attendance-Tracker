@@ -14,23 +14,18 @@ export function AuthProvider({ children }) {
 
     async function initializeAuth() {
       try {
-        // Attempt to fetch current user profile via active access cookie
+        // Attempt to fetch current user profile via active session.
+        // If the access token is expired, the axios interceptor in api.js
+        // will automatically refresh the session and retry getMe().
         const res = await authService.getMe();
         if (isMounted && res.user) {
           setUser(res.user);
         }
       } catch (err) {
-        // Access token might be expired; attempt silent refresh with refresh cookie
-        try {
-          const refreshRes = await authService.refresh();
-          if (isMounted && refreshRes.user) {
-            setUser(refreshRes.user);
-          }
-        } catch (refreshErr) {
-          // No active session or refresh token expired/revoked
-          if (isMounted) {
-            setUser(null);
-          }
+        // If getMe failed even after the interceptor attempted refresh,
+        // the session is truly invalid or expired.
+        if (isMounted) {
+          setUser(null);
         }
       } finally {
         if (isMounted) {

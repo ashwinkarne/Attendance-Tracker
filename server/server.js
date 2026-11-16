@@ -16,36 +16,57 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Trust first proxy if behind reverse proxy (e.g. Render, Vercel, Nginx)
+app.set('trust proxy', 1);
+
+// Allowed origins for CORS
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:3000',
+  'https://attendance-tracker-lik04njd1-onemanproject.vercel.app',
   process.env.CLIENT_URL
 ].filter(Boolean);
 
+// CORS configuration supporting credentials, cross-origin cookies, and preflight requests
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, or same-origin)
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps, curl, or same-origin / Vercel proxy)
+      if (!origin) {
         return callback(null, true);
       }
-      return callback(null, true); // Permissive in dev, adjust as needed
+
+      // Check explicit allowed origins list
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow all Vercel deployment URLs (production, preview, and branch deploys)
+      if (/\.vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow local development ports
+      if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      // Default allow for other preview origins
+      return callback(null, true);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Protection']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Protection', 'Accept', 'Origin'],
+    exposedHeaders: ['Set-Cookie'],
+    maxAge: 86400
   })
 );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-
-// Trust first proxy if behind reverse proxy (e.g., render, heroku, nginx)
-app.set('trust proxy', 1);
 
 // API Routes
 app.use('/api/auth', authRoutes);

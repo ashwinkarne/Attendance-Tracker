@@ -22,7 +22,6 @@ function generateAccessToken(user) {
   );
 }
 
-
 /**
  * Generates a cryptographically strong refresh token string
  */
@@ -48,35 +47,54 @@ function verifyAccessToken(token) {
   }
 }
 
+/**
+ * Returns true if running in production or on cloud hosting (e.g. Render, Vercel)
+ */
+function isProductionEnv() {
+  return process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+}
 
 /**
  * Cookie options for Access Token
  */
 function getAccessTokenCookieOptions() {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProd = isProductionEnv();
 
   return {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     path: '/',
-    maxAge: 15 * 60 * 1000
+    maxAge: 15 * 60 * 1000 // 15 minutes
   };
 }
 
 /**
  * Cookie options for Refresh Token
  */
-
 function getRefreshTokenCookieOptions() {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProd = isProductionEnv();
 
   return {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     path: '/',
-    maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000 // 30 days
+  };
+}
+
+/**
+ * Matching cookie options for clearing cookies (must match secure, sameSite, path)
+ */
+function getClearCookieOptions() {
+  const isProd = isProductionEnv();
+
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    path: '/'
   };
 }
 
@@ -87,5 +105,6 @@ module.exports = {
   verifyAccessToken,
   getAccessTokenCookieOptions,
   getRefreshTokenCookieOptions,
+  getClearCookieOptions,
   REFRESH_TOKEN_EXPIRY_DAYS
 };

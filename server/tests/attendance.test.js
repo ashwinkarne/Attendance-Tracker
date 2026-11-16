@@ -14,6 +14,7 @@ const {
   verifyAccessToken,
   getAccessTokenCookieOptions,
   getRefreshTokenCookieOptions,
+  getClearCookieOptions,
   REFRESH_TOKEN_EXPIRY_DAYS
 } = require('../utils/jwtUtils');
 
@@ -246,6 +247,27 @@ describe('Semester Attendance Tracker - Core Engine & Calculations', () => {
       assert.strictEqual(refreshCookie.httpOnly, true);
       assert.strictEqual(refreshCookie.path, '/');
       assert.strictEqual(refreshCookie.maxAge, REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+
+      const clearOptions = getClearCookieOptions();
+      assert.strictEqual(clearOptions.httpOnly, true);
+      assert.strictEqual(clearOptions.path, '/');
+    });
+
+    test('Cookie options switch to SameSite=None and Secure in production or on Render', () => {
+      process.env.RENDER = 'true';
+      const accessCookie = getAccessTokenCookieOptions();
+      assert.strictEqual(accessCookie.secure, true);
+      assert.strictEqual(accessCookie.sameSite, 'none');
+
+      const refreshCookie = getRefreshTokenCookieOptions();
+      assert.strictEqual(refreshCookie.secure, true);
+      assert.strictEqual(refreshCookie.sameSite, 'none');
+
+      const clearOptions = getClearCookieOptions();
+      assert.strictEqual(clearOptions.secure, true);
+      assert.strictEqual(clearOptions.sameSite, 'none');
+
+      delete process.env.RENDER;
     });
   });
 });

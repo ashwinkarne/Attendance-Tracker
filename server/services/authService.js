@@ -126,7 +126,7 @@ async function loginUser({ rollNumber, password, userAgent = '' }) {
 }
 
 /**
- * Refresh persistent session and rotate refresh token
+ * Refresh persistent session and rotate refresh token with concurrency grace period
  */
 async function refreshSession({ rawRefreshToken, userAgent = '' }) {
   if (!rawRefreshToken) {
@@ -134,13 +134,40 @@ async function refreshSession({ rawRefreshToken, userAgent = '' }) {
   }
 
   const tokenHash = hashToken(rawRefreshToken);
-  const session = await RefreshSession.findOne({
+  let session = await RefreshSession.findOne({
     refreshTokenHash: tokenHash,
     revokedAt: null,
     expiresAt: { $gt: new Date() }
   });
 
   if (!session) {
+    // Check if this session was rotated within a 30-second grace window
+    // This gracefully handles concurrent requests (e.g. multi-tab or queued network calls)
+    // presenting the recently rotated token before receiving the new cookie.
+    const recentRevokedSession = await RefreshSession.findOne({
+      refreshTokenHash: tokenHash,
+      revokedAt: { $gt: new Date(Date.now() - 30 * 1000) },
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (recentRevokedSession) {
+      const user = await User.findById(recentRevokedSession.userId);
+      if (user) {
+        const newAccessToken = generateAccessToken(user);
+        return {
+          accessToken: newAccessToken,
+          refreshToken: rawRefreshToken,
+          user: {
+            id: user._id,
+            fullName: user.fullName,
+            email: user.email,
+            rollNumber: user.rollNumber,
+            dateOfBirth: user.dateOfBirth
+          }
+        };
+      }
+    }
+
     throw { status: 401, message: 'Session is invalid or has expired.' };
   }
 
